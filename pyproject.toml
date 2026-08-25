@@ -9,6 +9,7 @@ dependencies = [
     "httpx",
     "redis>=8.1.0",
     "apscheduler>=3.11.3",
+    "playwright>=1.62.0",
 ]
 
 [build-system]
