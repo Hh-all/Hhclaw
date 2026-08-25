@@ -25,3 +25,13 @@ MAX_ITERATIONS = int(os.getenv("CLAWPY_MAX_ITERATIONS", "5"))
 MAX_TIME = float(os.getenv("CLAWPY_MAX_TIME", "60"))
 MAX_CONSECUTIVE_FAILURES = int(os.getenv("CLAWPY_MAX_CONSECUTIVE_FAILURES", "2"))
 SHELL_TIMEOUT = float(os.getenv("CLAWPY_SHELL_TIMEOUT", "30"))
+
+# 记忆系统（阶段 2 起用，见说明书第 6 章）
+# 注意：Qdrant/BGE 因 portproxy 冲突临时用新端口，删 portproxy 后改回 6333/8081
+REDIS_URL = os.getenv("CLAWPY_REDIS_URL", "redis://localhost:6378")
+QDRANT_URL = os.getenv("CLAWPY_QDRANT_URL", "http://localhost:16333")
+BGE_URL = os.getenv("CLAWPY_BGE_URL", "http://localhost:18081")
+BGE_DIM = int(os.getenv("CLAWPY_BGE_DIM", "512"))
+MEMORY_COLLECTION = os.getenv("CLAWPY_MEMORY_COLLECTION", "clawpy_memory")
+MEMORY_TOP_K = int(os.getenv("CLAWPY_MEMORY_TOP_K", "5"))
+USER_ID = os.getenv("CLAWPY_USER_ID", "default")

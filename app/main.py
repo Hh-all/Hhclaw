@@ -1,7 +1,7 @@
-"""ClawPy 入口：FastAPI + WebSocket 接入层（阶段 0 最小闭环）。
+"""ClawPy 入口：FastAPI + WebSocket 接入层。
 
-阶段 0 范围：网页发消息 -> LLM 流式回复。无工具、无记忆、无技能。
-启动顺序遵循《详细设计说明书》第 3 章（阶段 0 仅加载配置 + 启动接入层）。
+阶段 2A：短期记忆（Redis）+ 长期记忆检索（Qdrant+BGE）+ 显式记忆写入。
+启动顺序遵循《详细设计说明书》第 3 章。
 """
 import json
 import logging
@@ -13,6 +13,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 from . import config
+from . import memory
 from .agent import run_agent
 
 logging.basicConfig(
@@ -26,7 +27,6 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # 启动顺序（阶段 0：无 Redis/Qdrant/SKILL/心跳，仅加载配置 + 接入层）
     if not config.AGICTO_API_KEY:
         logger.warning("AGICTO_API_KEY 未设置，LLM 调用将失败")
     logger.info("ClawPy 启动：model=%s base_url=%s", config.MODEL, config.AGICTO_BASE_URL)
@@ -38,8 +38,6 @@ app = FastAPI(title="ClawPy", lifespan=lifespan)
 
 # 连接注册表（阶段 0 存 WebSocket 对象；接入多平台时升级为投递函数抽象）
 registry: dict[str, WebSocket] = {}
-# 会话历史（阶段 0 内存版；阶段 2 换 Redis）
-session_history: dict[str, list[dict]] = {}
 
 
 @app.get("/health")
@@ -55,14 +53,12 @@ async def index():
 @app.websocket("/ws")
 async def chat_ws(ws: WebSocket):
     await ws.accept()
-    session_id = str(uuid.uuid4())
+    session_id = ws.query_params.get("session_id") or str(uuid.uuid4())
     registry[session_id] = ws
-    session_history[session_id] = []
     logger.info("连接建立 session=%s", session_id)
     try:
         while True:
             text = await ws.receive_text()
-            # 统一消息模型（预留 async_mode / task_id，见说明书第 4 章）
             msg = {
                 "session_id": session_id,
                 "platform": "web",
@@ -77,25 +73,44 @@ async def chat_ws(ws: WebSocket):
                     json.dumps({"type": "error", "content": "消息过长"}, ensure_ascii=False)
                 )
                 continue
-            # 阶段 0 会话内天然串行（while 循环 await 处理完才收下一条）
             await handle_message(session_id, msg, ws)
     except WebSocketDisconnect:
         logger.info("连接断开 session=%s", session_id)
     finally:
         registry.pop(session_id, None)
-        session_history.pop(session_id, None)
 
 
 async def handle_message(session_id: str, msg: dict, ws: WebSocket):
-    """阶段 1 处理：Agent ReAct 循环（含工具）。"""
-    history = session_history[session_id]
-    history.append({"role": "user", "content": msg["text"]})
-    messages = [{"role": "system", "content": config.SYSTEM_PROMPT}] + history[
-        -config.MAX_HISTORY:
-    ]
+    """阶段 2A 处理：长期记忆检索 + 短期记忆（Redis）+ Agent ReAct 循环。"""
+    user_text = msg["text"]
 
     async def emit(event: dict):
         await ws.send_text(json.dumps(event, ensure_ascii=False))
+
+    # 1. 显式记忆检测（用户说「记住X」）
+    if await memory.maybe_remember(user_text):
+        await emit({"type": "status", "content": "已记住"})
+
+    # 2. 检索长期记忆（熔断降级，异常返回空）
+    memories = await memory.search_memory(user_text)
+
+    # 3. 取短期历史
+    history = await memory.get_history(session_id)
+
+    # 4. 拼 system prompt（含长期记忆）
+    system_prompt = config.SYSTEM_PROMPT
+    if memories:
+        system_prompt += "\n\n【关于用户，你已知的（来自长期记忆）】\n" + "\n".join(
+            f"- {m}" for m in memories
+        )
+
+    # 5. 拼 messages（system + 历史 + 当前 user）
+    messages = [{"role": "system", "content": system_prompt}]
+    messages += history
+    messages.append({"role": "user", "content": user_text})
+
+    # 6. 写 user 消息到短期记忆
+    await memory.append_message(session_id, "user", user_text)
 
     await emit({"type": "thinking", "content": "思考中"})
 
@@ -114,5 +129,5 @@ async def handle_message(session_id: str, msg: dict, ws: WebSocket):
         await emit({"type": "error", "content": f"调用失败：{str(e) or type(e).__name__}"})
 
     if full:
-        history.append({"role": "assistant", "content": full})
+        await memory.append_message(session_id, "assistant", full)
     await emit({"type": "done", "content": ""})

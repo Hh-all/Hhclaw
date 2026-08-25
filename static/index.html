@@ -142,8 +142,13 @@ body {
   var processing = false;
 
   function connect() {
+    var sessionId = localStorage.getItem('clawpy_sid');
+    if (!sessionId) {
+      sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+      localStorage.setItem('clawpy_sid', sessionId);
+    }
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
-    ws = new WebSocket(proto + location.host + '/ws');
+    ws = new WebSocket(proto + location.host + '/ws?session_id=' + sessionId);
     ws.onmessage = onMessage;
     ws.onclose = function () { setTimeout(connect, 3000); };
     ws.onerror = function () { ws.close(); };
