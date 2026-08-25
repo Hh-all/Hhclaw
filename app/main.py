@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 
 from . import config
 from . import memory
+from . import skills
 from .agent import run_agent
 
 logging.basicConfig(
@@ -109,6 +110,10 @@ async def handle_message(session_id: str, msg: dict, ws: WebSocket):
         system_prompt += "\n\n【关于用户，你已知的（来自长期记忆）】\n" + "\n".join(
             f"- {m}" for m in memories
         )
+    # 技能路由（关键词粗筛 + 注入命中技能正文）
+    skill_text = skills.render_skills(skills.route_skills(user_text))
+    if skill_text:
+        system_prompt += skill_text
 
     # 5. 拼 messages（system + 历史 + 当前 user）
     messages = [{"role": "system", "content": system_prompt}]
