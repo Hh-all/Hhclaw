@@ -3,6 +3,7 @@
 阶段 2A：短期记忆（Redis）+ 长期记忆检索（Qdrant+BGE）+ 显式记忆写入。
 启动顺序遵循《详细设计说明书》第 3 章。
 """
+import asyncio
 import json
 import logging
 import uuid
@@ -78,6 +79,8 @@ async def chat_ws(ws: WebSocket):
         logger.info("连接断开 session=%s", session_id)
     finally:
         registry.pop(session_id, None)
+        # 会话结束钩子：异步抽取长期记忆（不阻塞连接关闭）
+        asyncio.create_task(memory.extract_and_save(session_id))
 
 
 async def handle_message(session_id: str, msg: dict, ws: WebSocket):
@@ -94,11 +97,14 @@ async def handle_message(session_id: str, msg: dict, ws: WebSocket):
     # 2. 检索长期记忆（熔断降级，异常返回空）
     memories = await memory.search_memory(user_text)
 
-    # 3. 取短期历史
+    # 3. 取短期历史 + 摘要
     history = await memory.get_history(session_id)
+    summaries = await memory.get_summaries(session_id)
 
-    # 4. 拼 system prompt（含长期记忆）
+    # 4. 拼 system prompt（含摘要 + 长期记忆）
     system_prompt = config.SYSTEM_PROMPT
+    if summaries:
+        system_prompt += "\n\n【本次会话的早期摘要】\n" + "\n".join(f"- {s}" for s in summaries)
     if memories:
         system_prompt += "\n\n【关于用户，你已知的（来自长期记忆）】\n" + "\n".join(
             f"- {m}" for m in memories
@@ -111,6 +117,10 @@ async def handle_message(session_id: str, msg: dict, ws: WebSocket):
 
     # 6. 写 user 消息到短期记忆
     await memory.append_message(session_id, "user", user_text)
+
+    # 7. 每 SUMMARY_EVERY 轮触发一次摘要（异步，不阻塞回复）
+    if len(history) + 1 >= config.SUMMARY_EVERY * 2:
+        asyncio.create_task(memory.summarize_session(session_id))
 
     await emit({"type": "thinking", "content": "思考中"})
 

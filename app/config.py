@@ -35,3 +35,7 @@ BGE_DIM = int(os.getenv("CLAWPY_BGE_DIM", "512"))
 MEMORY_COLLECTION = os.getenv("CLAWPY_MEMORY_COLLECTION", "clawpy_memory")
 MEMORY_TOP_K = int(os.getenv("CLAWPY_MEMORY_TOP_K", "5"))
 USER_ID = os.getenv("CLAWPY_USER_ID", "default")
+
+# 摘要层（阶段 2B 起用）
+SUMMARY_EVERY = int(os.getenv("CLAWPY_SUMMARY_EVERY", "10"))  # 每 N 轮触发摘要
+SUMMARY_KEEP = int(os.getenv("CLAWPY_SUMMARY_KEEP", "3"))     # 保留最近 N 条摘要

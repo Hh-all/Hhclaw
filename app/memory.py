@@ -11,6 +11,7 @@ import httpx
 import redis.asyncio as redis
 
 from . import config
+from .llm import stream_chat
 
 # 短期记忆 Redis 客户端
 _redis = redis.from_url(config.REDIS_URL, decode_responses=True)
@@ -132,3 +133,66 @@ async def maybe_remember(text: str) -> bool:
             if content:
                 return await save_memory(content)
     return False
+
+
+# ============ 摘要层 + 会话结束自动抽取（阶段 2B） ============
+
+def _summary_key(session_id: str) -> str:
+    return f"clawpy:session:{session_id}:summary"
+
+
+async def get_summaries(session_id: str) -> list[str]:
+    """取会话摘要（最近 SUMMARY_KEEP 条）。"""
+    try:
+        return await _redis.lrange(_summary_key(session_id), 0, -1)
+    except Exception:
+        return []
+
+
+async def summarize_session(session_id: str):
+    """对当前会话历史做一次 LLM 摘要，追加到 summary。"""
+    history = await get_history(session_id)
+    if len(history) < 6:  # 至少 3 轮才摘要
+        return
+    text = "\n".join(f"{m['role']}: {m['content'][:200]}" for m in history)
+    messages = [
+        {"role": "system", "content": "你是对话摘要器。把下面这段对话压缩成 2-3 句话的摘要，保留关键事实、结论和用户意图。"},
+        {"role": "user", "content": text},
+    ]
+    summary = ""
+    try:
+        async for event in stream_chat(messages):
+            if event["type"] == "token":
+                summary += event["content"]
+    except Exception:
+        return
+    summary = summary.strip()
+    if summary:
+        try:
+            await _redis.rpush(_summary_key(session_id), summary)
+            await _redis.ltrim(_summary_key(session_id), -config.SUMMARY_KEEP, -1)
+        except Exception:
+            pass
+
+
+async def extract_and_save(session_id: str):
+    """会话结束时，从历史抽取可复用事实写入长期记忆（异步，不阻塞）。"""
+    history = await get_history(session_id)
+    if len(history) < 4:  # 太短不抽取
+        return
+    text = "\n".join(f"{m['role']}: {m['content'][:300]}" for m in history)
+    messages = [
+        {"role": "system", "content": "你是记忆抽取器。从对话中抽取用户的长期有效事实（姓名、偏好、个人信息、重要结论），每条一行，只输出事实本身，不要编号或解释。没有可抽取的就输出空。"},
+        {"role": "user", "content": text},
+    ]
+    result = ""
+    try:
+        async for event in stream_chat(messages):
+            if event["type"] == "token":
+                result += event["content"]
+    except Exception:
+        return
+    for line in result.strip().splitlines():
+        line = line.strip().strip("-•*0123456789.、 ").strip()
+        if line and len(line) > 2:
+            await save_memory(line)
