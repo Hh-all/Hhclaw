@@ -8,6 +8,7 @@ dependencies = [
     "uvicorn[standard]",
     "httpx",
     "redis>=8.1.0",
+    "apscheduler>=3.11.3",
 ]
 
 [build-system]

@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from . import config
 from . import memory
 from . import skills
+from . import scheduler
 from .agent import run_agent
 
 logging.basicConfig(
@@ -32,7 +33,9 @@ async def lifespan(app: FastAPI):
     if not config.AGICTO_API_KEY:
         logger.warning("AGICTO_API_KEY 未设置，LLM 调用将失败")
     logger.info("ClawPy 启动：model=%s base_url=%s", config.MODEL, config.AGICTO_BASE_URL)
+    scheduler.start_heartbeat(registry)
     yield
+    scheduler.stop_heartbeat()
     logger.info("ClawPy 关闭")
 
 

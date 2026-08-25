@@ -39,3 +39,10 @@ USER_ID = os.getenv("CLAWPY_USER_ID", "default")
 # 摘要层（阶段 2B 起用）
 SUMMARY_EVERY = int(os.getenv("CLAWPY_SUMMARY_EVERY", "10"))  # 每 N 轮触发摘要
 SUMMARY_KEEP = int(os.getenv("CLAWPY_SUMMARY_KEEP", "3"))     # 保留最近 N 条摘要
+
+# 心跳调度（阶段 4A 起用，见说明书第 11.3 节）
+HEARTBEAT_ENABLED = os.getenv("CLAWPY_HEARTBEAT_ENABLED", "false").lower() == "true"
+HEARTBEAT_INTERVAL = int(os.getenv("CLAWPY_HEARTBEAT_INTERVAL", "3600"))  # 秒，默认 1 小时
+HEARTBEAT_PROMPT = os.getenv(
+    "CLAWPY_HEARTBEAT_PROMPT", "检查一下当前系统状态（磁盘、内存），简要汇报"
+)
