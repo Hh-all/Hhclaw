@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClawPy</title>
+<style>
+:root {
+  --bg: #f0f2f5;
+  --white: #ffffff;
+  --border: #e4e7ed;
+  --text: #303133;
+  --text2: #909399;
+  --blue: #409eff;
+  --blue-light: #ecf5ff;
+  --red: #f56c6c;
+  --radius: 12px;
+  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: var(--bg);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.chat {
+  width: 100%;
+  max-width: 760px;
+  height: 92vh;
+  background: var(--white);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.header {
+  padding: 16px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--blue);
+}
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.msg {
+  max-width: 78%;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  line-height: 1.6;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg.user {
+  align-self: flex-end;
+  background: var(--blue);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.msg.assistant {
+  align-self: flex-start;
+  background: var(--blue-light);
+  color: var(--text);
+  border-bottom-left-radius: 4px;
+}
+.msg.assistant.thinking { color: var(--text2); }
+.msg.error {
+  align-self: center;
+  background: #fef0f0;
+  color: var(--red);
+  font-size: 13px;
+}
+.msg.tool {
+  align-self: flex-start;
+  background: #f5f7fa;
+  color: var(--text2);
+  font-size: 12px;
+  border-left: 3px solid #c0c4cc;
+  border-radius: 6px;
+}
+.input-bar {
+  display: flex;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+.input-bar input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+.input-bar input:focus { border-color: var(--blue); }
+.input-bar button {
+  padding: 10px 20px;
+  background: var(--blue);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.input-bar button:disabled { background: #a0cfff; cursor: not-allowed; }
+</style>
+</head>
+<body>
+<div class="chat">
+  <div class="header"><span class="status-dot"></span>ClawPy</div>
+  <div class="messages" id="messages"></div>
+  <div class="input-bar">
+    <input id="input" placeholder="输入消息，回车发送" autocomplete="off">
+    <button id="send">发送</button>
+  </div>
+</div>
+<script>
+(function () {
+  var messages = document.getElementById('messages');
+  var input = document.getElementById('input');
+  var sendBtn = document.getElementById('send');
+  var ws = null;
+  var currentAssistant = null;
+  var currentTool = null;
+  var processing = false;
+
+  function connect() {
+    var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    ws = new WebSocket(proto + location.host + '/ws');
+    ws.onmessage = onMessage;
+    ws.onclose = function () { setTimeout(connect, 3000); };
+    ws.onerror = function () { ws.close(); };
+  }
+
+  function addMsg(role, text) {
+    var div = document.createElement('div');
+    div.className = 'msg ' + role;
+    div.textContent = text;
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
+  function onMessage(e) {
+    var msg = JSON.parse(e.data);
+    if (msg.type === 'thinking') {
+      currentAssistant = addMsg('assistant', '思考中...');
+      currentAssistant.classList.add('thinking');
+    } else if (msg.type === 'tool_start') {
+      currentTool = addMsg('tool', msg.content + ' ...');
+    } else if (msg.type === 'status') {
+      if (currentTool) {
+        currentTool.textContent += '\n' + msg.content;
+        messages.scrollTop = messages.scrollHeight;
+      }
+    } else if (msg.type === 'token') {
+      currentTool = null;
+      if (!currentAssistant) currentAssistant = addMsg('assistant', '');
+      if (currentAssistant.classList.contains('thinking')) {
+        currentAssistant.classList.remove('thinking');
+        currentAssistant.textContent = '';
+      }
+      currentAssistant.textContent += msg.content;
+      messages.scrollTop = messages.scrollHeight;
+    } else if (msg.type === 'done') {
+      processing = false;
+      setInputEnabled(true);
+      currentAssistant = null;
+      currentTool = null;
+    } else if (msg.type === 'error') {
+      if (currentAssistant) { currentAssistant.remove(); currentAssistant = null; }
+      currentTool = null;
+      addMsg('error', msg.content);
+      processing = false;
+      setInputEnabled(true);
+    }
+  }
+
+  function send() {
+    var text = input.value.trim();
+    if (!text || processing || !ws || ws.readyState !== 1) return;
+    addMsg('user', text);
+    input.value = '';
+    processing = true;
+    setInputEnabled(false);
+    ws.send(text);
+  }
+
+  function setInputEnabled(enabled) {
+    input.disabled = !enabled;
+    sendBtn.disabled = !enabled;
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  });
+
+  connect();
+  input.focus();
+})();
+</script>
+</body>
+</html>

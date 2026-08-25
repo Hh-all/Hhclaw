@@ -1,0 +1,12 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# 环境变量（含密钥）
+.env
+
+# 系统
+.DS_Store
