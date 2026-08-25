@@ -17,6 +17,7 @@ from . import config
 from . import memory
 from . import skills
 from . import scheduler
+from . import multiagent
 from .agent import run_agent
 
 logging.basicConfig(
@@ -141,7 +142,14 @@ async def handle_message(session_id: str, msg: dict, ws: WebSocket):
         await emit(event)
 
     try:
-        await run_agent(messages, collect)
+        # 主 Agent 判断是否需要拆解（多 Agent）
+        subtasks = await multiagent.plan_subtasks(user_text)
+        if subtasks:
+            await emit({"type": "status", "content": f"已拆解为 {len(subtasks)} 个子任务，并发执行"})
+            results = await multiagent.dispatch_subtasks(subtasks, emit)
+            full = await multiagent.summarize(user_text, results, emit)
+        else:
+            await run_agent(messages, collect)
     except Exception as e:
         logger.exception("Agent 执行失败 session=%s", session_id)
         await emit({"type": "error", "content": f"调用失败：{str(e) or type(e).__name__}"})
