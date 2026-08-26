@@ -11,7 +11,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from . import config
 from .agent import run_agent
 
-logger = logging.getLogger("clawpy")
+logger = logging.getLogger("hhclaw")
 
 scheduler = AsyncIOScheduler()
 

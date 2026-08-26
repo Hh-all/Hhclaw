@@ -1,5 +1,5 @@
 [project]
-name = "clawpy"
+name = "hhclaw"
 version = "0.1.0"
 description = "个人专属 AI 助手（OpenClaw 升级版）"
 requires-python = ">=3.10"

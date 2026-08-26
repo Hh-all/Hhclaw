@@ -1,4 +1,4 @@
-# ClawPy
+# Hhclaw
 
 个人专属 AI 助手（OpenClaw 升级版），全 Python 技术栈，本地运行。
 
@@ -79,7 +79,7 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 - Qdrant（`:16333`，原 6333 被 Windows portproxy 占用，换端口）
 - BGE 嵌入服务（`:18081`，bge-small-zh-v1.5）
 
-> 心跳默认关闭，需要时 `CLAWPY_HEARTBEAT_ENABLED=true` + `CLAWPY_HEARTBEAT_INTERVAL` 开启。
+> 心跳默认关闭，需要时 `HHCLAW_HEARTBEAT_ENABLED=true` + `HHCLAW_HEARTBEAT_INTERVAL` 开启。
 
 ## 技术栈
 

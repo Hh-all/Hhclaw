@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ClawPy</title>
+<title>Hhclaw</title>
 <style>
 :root {
   --bg: #f0f2f5;
@@ -132,7 +132,7 @@ body {
 </head>
 <body>
 <div class="chat">
-  <div class="header"><span class="status-dot"></span>ClawPy</div>
+  <div class="header"><span class="status-dot"></span>Hhclaw</div>
   <div class="messages" id="messages"></div>
   <div class="input-bar">
     <input id="input" placeholder="输入消息，回车发送" autocomplete="off">
@@ -150,10 +150,10 @@ body {
   var processing = false;
 
   function connect() {
-    var sessionId = localStorage.getItem('clawpy_sid');
+    var sessionId = localStorage.getItem('hhclaw_sid');
     if (!sessionId) {
       sessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
-      localStorage.setItem('clawpy_sid', sessionId);
+      localStorage.setItem('hhclaw_sid', sessionId);
     }
     var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
     ws = new WebSocket(proto + location.host + '/ws?session_id=' + sessionId);

@@ -1,4 +1,4 @@
-"""README 截图脚本：Playwright 驱动 Windows Edge，截取 ClawPy 对话界面。"""
+"""README 截图脚本：Playwright 驱动 Windows Edge，截取 Hhclaw 对话界面。"""
 import asyncio
 from pathlib import Path
 

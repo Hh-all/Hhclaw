@@ -1,4 +1,4 @@
-"""ClawPy 入口：FastAPI + WebSocket 接入层。
+"""Hhclaw 入口：FastAPI + WebSocket 接入层。
 
 阶段 2A：短期记忆（Redis）+ 长期记忆检索（Qdrant+BGE）+ 显式记忆写入。
 启动顺序遵循《详细设计说明书》第 3 章。
@@ -25,7 +25,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
-logger = logging.getLogger("clawpy")
+logger = logging.getLogger("hhclaw")
 
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
@@ -34,16 +34,16 @@ STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 async def lifespan(app: FastAPI):
     if not config.AGICTO_API_KEY:
         logger.warning("AGICTO_API_KEY 未设置，LLM 调用将失败")
-    logger.info("ClawPy 启动：model=%s base_url=%s", config.MODEL, config.AGICTO_BASE_URL)
+    logger.info("Hhclaw 启动：model=%s base_url=%s", config.MODEL, config.AGICTO_BASE_URL)
     scheduler.start_heartbeat(registry)
     qqbot_task = asyncio.create_task(qqbot.run_qqbot())
     yield
     qqbot_task.cancel()
     scheduler.stop_heartbeat()
-    logger.info("ClawPy 关闭")
+    logger.info("Hhclaw 关闭")
 
 
-app = FastAPI(title="ClawPy", lifespan=lifespan)
+app = FastAPI(title="Hhclaw", lifespan=lifespan)
 
 # 连接注册表（阶段 0 存 WebSocket 对象；接入多平台时升级为投递函数抽象）
 registry: dict[str, WebSocket] = {}

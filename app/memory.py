@@ -19,7 +19,7 @@ _redis = redis.from_url(config.REDIS_URL, decode_responses=True)
 # ============ 短期记忆（Redis List，20 轮环形） ============
 
 def _history_key(session_id: str) -> str:
-    return f"clawpy:session:{session_id}:history"
+    return f"hhclaw:session:{session_id}:history"
 
 
 async def get_history(session_id: str) -> list[dict]:
@@ -138,7 +138,7 @@ async def maybe_remember(text: str) -> bool:
 # ============ 摘要层 + 会话结束自动抽取（阶段 2B） ============
 
 def _summary_key(session_id: str) -> str:
-    return f"clawpy:session:{session_id}:summary"
+    return f"hhclaw:session:{session_id}:summary"
 
 
 async def get_summaries(session_id: str) -> list[str]:

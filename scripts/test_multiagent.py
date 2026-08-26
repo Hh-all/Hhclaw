@@ -30,7 +30,7 @@ async def main():
         # 简单任务（应不拆解，走单 Agent）
         await chat(ws, "你好，用一句话介绍你自己")
         # 复杂任务（应拆解并发执行）
-        await chat(ws, "分析 ClawPy 项目的三个维度：代码结构、主要依赖、安全设计，每个维度分别说明")
+        await chat(ws, "分析 Hhclaw 项目的三个维度：代码结构、主要依赖、安全设计，每个维度分别说明")
 
 
 asyncio.run(main())

@@ -1,6 +1,6 @@
 """QQ 官方机器人接入（WebSocket 网关）。
 
-阶段 4B：ClawPy 作为客户端主动连 QQ 官方 WebSocket 网关，
+阶段 4B：Hhclaw 作为客户端主动连 QQ 官方 WebSocket 网关，
 收 C2C 单聊 / 群聊 @ 事件，走 Agent 循环后通过 HTTP API 发消息。
 协议见 bot.q.qq.com 官方文档，流程：token → gateway → Hello → Identify → Ready → 心跳+收事件。
 """
@@ -18,7 +18,7 @@ from . import skills
 from . import multiagent
 from .agent import run_agent
 
-logger = logging.getLogger("clawpy.qqbot")
+logger = logging.getLogger("hhclaw.qqbot")
 
 # access_token 缓存（有效期 7200 秒，提前 60 秒刷新）
 _token: str = ""

@@ -4,13 +4,13 @@
 
 ## 当前状态
 
-- 目标：ClawPy 阶段 4B 多平台接入，QQ 优先（NapCat 方案）
+- 目标：Hhclaw 阶段 4B 多平台接入，QQ 优先（NapCat 方案）
 - 进度卡点：**等用户在 Windows 侧扫码登录 NapCat**（这是唯一阻塞项）
 - 文件位置：`D:\hermes_work_place\napcat\`
 
 ## 今天完成的
 
-1. 方案讨论 + 拍板：**NapCat Windows 原生**（QQ 和微信架构统一为「Windows 协议端 + WSL ClawPy + localhost」）
+1. 方案讨论 + 拍板：**NapCat Windows 原生**（QQ 和微信架构统一为「Windows 协议端 + WSL Hhclaw + localhost」）
 2. 下载 NapCat.Shell.zip（29MB，手动版）+ OneKey.zip（1MB，一键版）到 `D:\hermes_work_place\napcat\`
 3. 解压确认结构，读懂了 NapCat 的启动方式（launcher.bat / NapCatInstaller.exe）
 
@@ -28,13 +28,13 @@
    - 打开 `D:\hermes_work_place\napcat\onekey_extract\`
    - 双击 `NapCatInstaller.exe`，等它自动下载 QQ NT + NapCat（几百 MB）
    - 进生成的 NapCat 目录，双击 `napcat.bat`，手机 QQ 扫码登录（勾选「下次登录无需确认」）
-2. 用户扫完码后，我验证 **ClawPy 的 `/onebot/ws` 端点能否收到 NapCat 连接**
+2. 用户扫完码后，我验证 **Hhclaw 的 `/onebot/ws` 端点能否收到 NapCat 连接**
 3. 配反向 WS：`ws://localhost:8000/onebot/ws`
-4. 写 ClawPy 侧 `/onebot/ws` 端点代码（阶段 4B 第 2 步，目前还没写，因为用户要求先验证连接链路）
+4. 写 Hhclaw 侧 `/onebot/ws` 端点代码（阶段 4B 第 2 步，目前还没写，因为用户要求先验证连接链路）
 
 ## 环境备忘
 
-- ClawPy 跑 WSL，端口 **8000**（`app/main.py`，FastAPI + uvicorn）
+- Hhclaw 跑 WSL，端口 **8000**（`app/main.py`，FastAPI + uvicorn）
 - 反向 WS 目标：`ws://localhost:8000/onebot/ws`
 - NapCat WebUI 端口：6099（配反向 WS 用）
 - 30 天重登是硬约束，登录态持久化方案待跑通后定

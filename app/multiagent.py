@@ -36,7 +36,7 @@ async def run_subagent(goal: str) -> str:
         {
             "role": "system",
             "content": (
-                "你是 ClawPy 的子 Agent，负责完成一个具体的子任务。"
+                "你是 Hhclaw 的子 Agent，负责完成一个具体的子任务。"
                 "专注于给定目标，可使用工具（文件/Shell/HTTP），完成后返回简洁、准确的结果。"
             ),
         },
@@ -99,7 +99,7 @@ async def summarize(user_text: str, results: list[str], emit) -> str:
     messages = [
         {
             "role": "system",
-            "content": "你是 ClawPy 的主 Agent。把多个子任务的结果汇总成一份连贯、完整、对用户有用的回复。",
+            "content": "你是 Hhclaw 的主 Agent。把多个子任务的结果汇总成一份连贯、完整、对用户有用的回复。",
         },
         {
             "role": "user",
