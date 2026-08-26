@@ -185,7 +185,7 @@ async def run_qqbot():
             token = await get_access_token()
             ws_url = await get_gateway_url(token)
             logger.info("QQ 连接网关：%s", ws_url)
-            async with websockets.connect(ws_url, ping_interval=None) as ws:
+            async with websockets.connect(ws_url, ping_interval=None, open_timeout=15) as ws:
                 hello = json.loads(await ws.recv())
                 heartbeat_interval = hello["d"]["heartbeat_interval"] / 1000
                 logger.info("QQ 网关已连接，心跳周期 %.0fs", heartbeat_interval)
@@ -228,10 +228,15 @@ async def run_qqbot():
 
 
 async def _heartbeat(ws, interval: float):
-    """定时发心跳，携带最新事件序列号。"""
+    """定时发心跳，携带最新事件序列号。发送失败主动断开，触发外层重连。"""
     while True:
         await asyncio.sleep(interval)
         try:
             await ws.send(json.dumps({"op": 1, "d": _latest_seq}))
         except Exception:
+            logger.warning("QQ 心跳发送失败，主动断开连接以触发重连")
+            try:
+                await ws.close()
+            except Exception:
+                pass
             break
