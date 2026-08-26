@@ -12,6 +12,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import config
 from . import memory
@@ -19,6 +20,7 @@ from . import skills
 from . import scheduler
 from . import multiagent
 from . import qqbot
+from . import status
 from .agent import run_agent
 
 logging.basicConfig(
@@ -52,6 +54,16 @@ registry: dict[str, WebSocket] = {}
 @app.get("/health")
 async def health():
     return {"status": "ok", "model": config.MODEL}
+
+
+@app.get("/api/status")
+async def api_status():
+    data = await status.get_status()
+    data["sessions"] = len(registry)
+    return data
+
+
+app.mount("/images", StaticFiles(directory=STATIC_DIR / "images"), name="images")
 
 
 @app.get("/")

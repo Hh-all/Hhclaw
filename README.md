@@ -1,12 +1,27 @@
 # Hhclaw
 
-个人专属 AI 助手（OpenClaw 升级版），全 Python 技术栈，本地运行。
+> 个人专属 AI 助手 —— OpenClaw 的 Python 升级版，全 Python 技术栈，本地运行。
 
-> 一个常驻本地的 Python 进程：聊天界面 / QQ 当遥控器，LLM 当大脑，工具当手脚，向量记忆当长期记忆，SKILL.md 当技能库，定时器当闹钟。
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-WebSocket-009688?logo=fastapi&logoColor=white)
+![Qdrant](https://img.shields.io/badge/%E8%AE%B0%E5%BF%86-Qdrant%2BBGE-DC244C)
 
-## 截图一览（均为真实运行截图）
+一个常驻本地的 Python 进程：**聊天界面 / QQ 当遥控器，LLM 当大脑，工具当手脚，向量记忆当长期记忆，SKILL.md 当技能库，定时器当闹钟。**
 
-### 首页
+相比原版 OpenClaw 的升级点：
+
+| OpenClaw 原版 | Hhclaw 升级版 |
+|---|---|
+| 记忆 = 本地 Markdown 文件，纯文件查找 | 向量 RAG 记忆（Qdrant + BGE，语义检索「我上周说过啥」） |
+| Node.js | 全 Python（FastAPI，可维护、可写进简历） |
+| 单 Agent 为主 | 多 Agent 协作（主 Agent 拆解 + 子 Agent 并发） |
+| 英文生态 | 中文友好（BGE 本来就是中文强） |
+
+## 界面预览（真实运行截图）
+
+### 监控面板 + 对话
+
+启动后打开 http://localhost:8000，顶部实时展示系统资源（CPU / 内存 / 磁盘 / Token 消耗）与依赖服务健康灯（Redis / Qdrant / BGE / LLM）：
 
 ![首页](docs/screenshots/01-home.png)
 
@@ -18,37 +33,53 @@
 
 ### 记忆
 
-「记住我叫黄河」之后，下次会话（哪怕是全新会话）再问「我叫什么」，它能从向量记忆里检索出来：
+「记住我叫黄河，喜欢喝美式咖啡」之后，再问「我叫什么」，它能从向量记忆里检索出来：
 
 ![记忆](docs/screenshots/03-memory.png)
 
 ### 多 Agent 协作
 
-复杂任务「全面检查系统状态（磁盘/内存/进程）」被主 Agent 拆成 3 个子任务并发执行，再汇总成一份报告：
+复杂任务「全面检查系统状态」被主 Agent 拆成多个子任务并发执行，再汇总成一份带表格的报告：
 
 ![多 Agent](docs/screenshots/04-multiagent.png)
 
 ## 架构
 
-```
-┌───────────────────────────────────────────────────────┐
-│  接入层：WebChat(单文件HTML) · QQ官方机器人 · 微信(后置) │
-└──────────────────────────┬────────────────────────────┘
-                           │ WebSocket / QQ官方WebSocket网关
-┌──────────────────────────▼────────────────────────────┐
-│  Agent 执行器：主 Agent 拆解 + 子 Agent 并发（多Agent）  │
-│  工具层：文件 / Shell / HTTP（四层安全壳）               │
-└────────┬──────────────────────────┬───────────────────┘
-         │ 读写                      │ 加载
-┌────────▼──────────┐        ┌──────▼──────────────┐
-│ 记忆系统           │        │ 技能库 SKILL.md      │
-│ 短期Redis/摘要     │        │ frontmatter+路由     │
-│ 长期Qdrant+BGE    │        └─────────────────────┘
-└───────────────────┘
-          ▲
-┌─────────┴──────────┐
-│ 心跳调度 APScheduler │
-└────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Access["接入层"]
+        Web["WebChat 单文件前端<br/>亮色 · 零 CDN"]
+        QQ["QQ 官方机器人<br/>WebSocket 网关"]
+        WX["微信 / Telegram<br/>（规划中）"]
+    end
+
+    subgraph Core["Agent 核心"]
+        GW["FastAPI 接入层<br/>WebSocket + REST"]
+        Agent["Agent 执行器<br/>ReAct 循环 + 多 Agent 拆解"]
+        Tools["工具层<br/>文件 / Shell / HTTP<br/>四层安全壳"]
+    end
+
+    subgraph MemSkill["记忆与技能"]
+        Redis["Redis<br/>短期记忆 + 摘要层"]
+        Qdrant["Qdrant<br/>长期向量记忆"]
+        BGE["BGE 嵌入<br/>bge-small-zh-v1.5"]
+        Skill["SKILL.md<br/>技能库"]
+    end
+
+    LLM["LLM<br/>OpenAI 兼容接口"]:::ext
+
+    Web --> GW
+    QQ --> GW
+    WX -.-> GW
+    GW --> Agent
+    Agent --> Tools
+    Agent --> LLM
+    Agent --> Redis
+    Agent --> Qdrant
+    Agent --> Skill
+    Qdrant --> BGE
+
+    classDef ext fill:#f3f4f6,stroke:#9ca3af
 ```
 
 ## 核心特性
@@ -56,32 +87,42 @@
 | 能力 | 实现 |
 |---|---|
 | 流式聊天 | FastAPI + WebSocket，打字机效果 |
-| QQ 官方机器人 | 腾讯 QQ 开放平台官方 WebSocket 网关接入（合规、无封号风险），支持单聊 + 群聊 @ |
+| 实时监控面板 | `/api/status` 展示 CPU / 内存 / 磁盘 / Token / 依赖服务健康 / uptime |
 | 工具调用 | 文件 / Shell / HTTP，四层安全壳（结构化调用 + 白名单 + 路径校验 + 超时） |
 | 三层记忆 | Redis 短期（20 轮）→ 摘要层（每 10 轮）→ Qdrant 长期（BGE 向量检索） |
 | 技能库 | SKILL.md frontmatter + 关键词路由（中文顺序匹配） |
 | 心跳调度 | APScheduler 定时自主唤醒 |
 | 多 Agent | 主 Agent 拆解 + 子 Agent 并发（dispatch 接口，可换 LangGraph） |
+| QQ 官方机器人 | 腾讯 QQ 开放平台官方 WebSocket 网关（合规、无封号风险），单聊 + 群聊 @ |
 
 ## 快速开始
 
+### 1. 配置环境变量
+
 ```bash
-cd /mnt/d/hermes_work_place/clawpy
-export AGICTO_API_KEY=<你的LLM key>        # LLM 接入（OpenAI 兼容接口）
-export QQ_APP_ID=<你的QQ机器人AppID>        # QQ 官方机器人（可选）
-export QQ_APP_SECRET=<你的QQ机器人AppSecret> # QQ 官方机器人（可选）
-uv sync                                    # 安装依赖
+export AGICTO_API_KEY=<你的 LLM key>           # LLM 接入（OpenAI 兼容接口）
+export QQ_APP_ID=<你的 QQ 机器人 AppID>         # QQ 官方机器人（可选）
+export QQ_APP_SECRET=<你的 QQ 机器人 AppSecret>  # QQ 官方机器人（可选）
+```
+
+### 2. 安装依赖并启动
+
+```bash
+uv sync                                       # 安装依赖
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
 浏览器打开 http://localhost:8000 即可用 WebChat 对话。
 
-依赖服务（记忆系统需要）：
+### 3. 依赖服务（记忆系统需要）
 
-- Redis（`:6378`）
-- Qdrant（`:16333`，原 6333 被 Windows portproxy 占用，换端口）
-- BGE 嵌入服务（`:18081`，bge-small-zh-v1.5）
+| 服务 | 端口 | 说明 |
+|---|---|---|
+| Redis | 6378 | 短期记忆 + 摘要 |
+| Qdrant | 16333 | 长期向量记忆 |
+| BGE 嵌入 | 18081 | bge-small-zh-v1.5，512 维 |
 
+> 端口均可用环境变量覆盖：`HHCLAW_REDIS_URL` / `HHCLAW_QDRANT_URL` / `HHCLAW_BGE_URL`。
 > 心跳默认关闭，需要时 `HHCLAW_HEARTBEAT_ENABLED=true` + `HHCLAW_HEARTBEAT_INTERVAL` 开启。
 
 ## QQ 官方机器人接入
@@ -106,18 +147,19 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### 工作原理
 
-ClawPy 作为客户端主动连 QQ 官方 WebSocket 网关：拿 access_token → 连网关 → Identify 鉴权 → 收消息事件 → Agent 处理 → 通过 HTTP API 发消息回 QQ。群聊里需 @ 机器人才应答。
+Hhclaw 作为客户端主动连 QQ 官方 WebSocket 网关：拿 access_token → 连网关 → Identify 鉴权 → 收消息事件 → Agent 处理 → 通过 HTTP API 发消息回 QQ。群聊里需 @ 机器人才应答。
 
 ## 技术栈
 
-Python 3.11 · FastAPI · WebSocket · 手写 ReAct 循环 · Redis · Qdrant · BGE · APScheduler · httpx · websockets · Playwright（截图）
+Python 3.11 · FastAPI · WebSocket · 手写 ReAct 循环 · Redis · Qdrant · BGE · APScheduler · httpx · websockets · Playwright
 
 ## 项目结构
 
 ```
-clawpy/
+hhclaw/
 ├── app/
 │   ├── main.py        # 接入层（WebChat WebSocket）+ 消息处理编排
+│   ├── status.py      # 系统状态监控（/api/status + MCP 注册表）
 │   ├── qqbot.py       # QQ 官方机器人接入（WebSocket 网关 + 心跳 + 收发）
 │   ├── agent.py       # ReAct 循环（含终止条件）
 │   ├── tools.py       # 工具层 + 四层安全壳
@@ -125,26 +167,14 @@ clawpy/
 │   ├── skills.py      # SKILL.md 技能路由
 │   ├── multiagent.py  # 多 Agent 协作
 │   ├── scheduler.py   # 心跳调度
-│   ├── llm.py         # LLM 流式调用
+│   ├── llm.py         # LLM 流式调用 + token 统计
 │   └── config.py      # 配置（环境变量）
-├── skills/            # 技能库
-├── static/index.html  # 单文件前端（亮色、零 CDN）
+├── skills/            # 技能库（code-review 等）
+├── static/index.html  # 单文件前端（亮色、零 CDN、含监控面板）
 ├── docs/screenshots/  # README 截图
 └── scripts/           # 测试 + 截图脚本
 ```
 
-## 开发历史（git log）
+## 设计文档
 
-```
-2ab1acc  重命名项目 ClawPy → Hhclaw
-4956e5e  阶段4B  QQ 接入改为官方机器人平台（替代 NapCat 逆向）
-15fdd6b  阶段4B  多平台接入设计
-73d49a5  阶段4C  多 Agent 协作
-7551bed  阶段4A  心跳调度
-1c22598  阶段3   技能库
-d474b2c  阶段2B  摘要层 + 会话结束自动抽取
-1dcca54  阶段2A  记忆系统
-ed7254e  阶段0+1A 闭环 + 工具层 + 安全壳
-```
-
-完整设计文档见桌面《专属AI助手_详细设计说明书.md》。
+完整设计见仓库 `docs/` 目录与《专属AI助手_详细设计说明书》。

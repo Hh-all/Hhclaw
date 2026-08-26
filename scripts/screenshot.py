@@ -20,7 +20,7 @@ async def main():
     async with async_playwright() as p:
         # 连接手动启动的 Chrome headless（CDP 端口 9222，走 WSL interop）
         browser = await p.chromium.connect_over_cdp("http://localhost:9222")
-        page = await browser.new_page(viewport={"width": 1000, "height": 720})
+        page = await browser.new_page(viewport={"width": 1100, "height": 1000})
         await page.goto("http://localhost:8000", wait_until="networkidle")
         await page.wait_for_timeout(800)
 

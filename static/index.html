@@ -6,137 +6,266 @@
 <title>Hhclaw</title>
 <style>
 :root {
-  --bg: #f0f2f5;
-  --white: #ffffff;
-  --border: #e4e7ed;
-  --text: #303133;
-  --text2: #909399;
-  --blue: #409eff;
-  --blue-light: #ecf5ff;
-  --red: #f56c6c;
-  --radius: 12px;
-  --shadow: 0 2px 12px rgba(0,0,0,0.06);
+  --mint: #34d399;
+  --mint-deep: #10b981;
+  --mint-light: #d1fae5;
+  --mint-bg: #ecfdf5;
+  --cyan: #5eead4;
+  --text: #1f2937;
+  --text2: #6b7280;
+  --card: #ffffff;
+  --border: #d1fae5;
+  --red: #ef4444;
+  --yellow: #f59e0b;
+  --radius: 14px;
+  --shadow: 0 6px 24px rgba(16, 185, 129, 0.14);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: var(--bg);
-  height: 100vh;
+  background: linear-gradient(rgba(255,255,255,0.82), rgba(236,253,245,0.80)), url('/images/bg-mountain.jpg') center / cover fixed;
+  min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding: 16px;
 }
-.chat {
+.header, .metrics, .mcp-section, .chat {
+  backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.88);
+}
+.app {
   width: 100%;
-  max-width: 760px;
-  height: 92vh;
-  background: var(--white);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-.header {
-  padding: 16px 20px;
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--text);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.status-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--blue);
-}
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 20px;
+  max-width: 820px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
+/* ===== 头部 ===== */
+.header {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.avatar {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 22%;
+  border: 3px solid var(--mint-light);
+  box-shadow: 0 0 0 2px var(--mint);
+  flex-shrink: 0;
+}
+.title-wrap { flex: 1; }
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+.subtitle {
+  font-size: 12px;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+.dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 6px var(--mint);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+.uptime-badge {
+  font-size: 12px;
+  color: var(--mint-deep);
+  background: var(--mint-light);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+/* ===== 监控栏 ===== */
+.metrics {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+.metric {
+  flex: 1 1 120px;
+  min-width: 110px;
+  background: var(--mint-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+.metric .label { font-size: 11px; color: var(--text2); }
+.metric .value { font-size: 16px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.metric .bar {
+  height: 5px; background: #e5e7eb; border-radius: 3px; margin-top: 6px; overflow: hidden;
+}
+.metric .bar i {
+  display: block; height: 100%; border-radius: 3px;
+  background: var(--mint-deep); transition: width 0.5s;
+}
+.metric .bar i.warn { background: var(--yellow); }
+.metric .bar i.danger { background: var(--red); }
+.services {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding-top: 2px;
+}
+.svc {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text2);
+  background: #f9fafb; border: 1px solid #e5e7eb;
+  padding: 4px 10px; border-radius: 999px;
+}
+.svc .dot { width: 7px; height: 7px; animation: none; }
+.svc.ok .dot { background: var(--mint-deep); box-shadow: 0 0 5px var(--mint); }
+.svc.bad .dot { background: var(--red); box-shadow: 0 0 5px var(--red); }
+.svc.bad { color: var(--red); border-color: #fecaca; background: #fef2f2; }
+/* ===== MCP 方块 ===== */
+.mcp-section {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 14px 18px;
+}
+.mcp-head { font-size: 12px; color: var(--text2); margin-bottom: 10px; font-weight: 600; }
+.mcp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 10px;
+}
+.mcp-card {
+  background: var(--mint-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.mcp-card .mcp-name {
+  font-size: 13px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 6px;
+}
+.mcp-card .mcp-info { font-size: 11px; color: var(--text2); margin-top: 6px; word-break: break-all; }
+.mcp-empty { font-size: 12px; color: var(--text2); }
+/* ===== 聊天区 ===== */
+.chat {
+  background: var(--card);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 320px;
+  flex: 1;
+}
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 42vh;
+}
+.messages::-webkit-scrollbar { width: 7px; }
+.messages::-webkit-scrollbar-thumb { background: #a7f3d0; border-radius: 4px; }
 .msg {
   max-width: 78%;
-  padding: 10px 14px;
+  padding: 10px 15px;
   border-radius: var(--radius);
   line-height: 1.6;
   font-size: 14px;
   white-space: pre-wrap;
   word-break: break-word;
+  animation: pop 0.22s ease;
 }
+@keyframes pop { from { transform: translateY(5px); opacity: 0; } to { transform: none; opacity: 1; } }
 .msg.user {
   align-self: flex-end;
-  background: var(--blue);
+  background: linear-gradient(135deg, var(--mint), var(--mint-deep));
   color: #fff;
-  border-bottom-right-radius: 4px;
+  border-bottom-right-radius: 6px;
 }
 .msg.assistant {
   align-self: flex-start;
-  background: var(--blue-light);
+  background: var(--mint-bg);
   color: var(--text);
-  border-bottom-left-radius: 4px;
+  border: 1px solid var(--border);
+  border-bottom-left-radius: 6px;
 }
 .msg.assistant.thinking { color: var(--text2); }
-.msg.error {
-  align-self: center;
-  background: #fef0f0;
-  color: var(--red);
-  font-size: 13px;
-}
-.msg.tool {
-  align-self: flex-start;
-  background: #f5f7fa;
-  color: var(--text2);
-  font-size: 12px;
-  border-left: 3px solid #c0c4cc;
-  border-radius: 6px;
-}
-.msg.heartbeat {
-  align-self: center;
-  background: #f5f7fa;
-  color: var(--text2);
-  font-size: 12px;
-  text-align: center;
-  border: 1px dashed var(--border);
-}
+.msg.error { align-self: center; background: #fef2f2; color: var(--red); font-size: 13px; border: 1px solid #fecaca; }
+.msg.tool { align-self: flex-start; background: #f9fafb; color: var(--text2); font-size: 12px; border-left: 3px solid var(--cyan); border-radius: 8px; }
+.msg.heartbeat { align-self: center; background: #f9fafb; color: var(--text2); font-size: 12px; border: 1px dashed var(--border); border-radius: 14px; padding: 6px 14px; }
 .input-bar {
-  display: flex;
-  gap: 10px;
-  padding: 14px 20px;
+  display: flex; gap: 10px; padding: 13px 16px;
   border-top: 1px solid var(--border);
 }
 .input-bar input {
-  flex: 1;
-  padding: 10px 14px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  font-size: 14px;
-  outline: none;
+  flex: 1; padding: 11px 16px;
+  border: 2px solid var(--border); border-radius: 999px;
+  font-size: 14px; outline: none; background: var(--mint-bg);
+  transition: border-color 0.2s;
 }
-.input-bar input:focus { border-color: var(--blue); }
+.input-bar input:focus { border-color: var(--mint-deep); background: #fff; }
+.input-bar input::placeholder { color: #a7c5b8; }
 .input-bar button {
-  padding: 10px 20px;
-  background: var(--blue);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
+  padding: 11px 22px;
+  background: linear-gradient(135deg, var(--mint), var(--mint-deep));
+  color: #fff; border: none; border-radius: 999px;
+  font-size: 14px; font-weight: 600; cursor: pointer;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+  transition: transform 0.15s;
 }
-.input-bar button:disabled { background: #a0cfff; cursor: not-allowed; }
+.input-bar button:hover:not(:disabled) { transform: translateY(-1px); }
+.input-bar button:disabled { background: #a7f3d0; cursor: not-allowed; box-shadow: none; }
 </style>
 </head>
 <body>
-<div class="chat">
-  <div class="header"><span class="status-dot"></span>Hhclaw</div>
-  <div class="messages" id="messages"></div>
-  <div class="input-bar">
-    <input id="input" placeholder="输入消息，回车发送" autocomplete="off">
-    <button id="send">发送</button>
+<div class="app">
+  <div class="header">
+    <img class="avatar" src="/images/mascot.jpg" alt="mascot">
+    <div class="title-wrap">
+      <div class="title">Hhclaw</div>
+      <div class="subtitle"><span class="dot"></span>在线 · 你的专属 AI 助手</div>
+    </div>
+    <div class="uptime-badge" id="uptime">--</div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="label">CPU</div><div class="value" id="m-cpu">--</div><div class="bar"><i id="b-cpu"></i></div></div>
+    <div class="metric"><div class="label">内存</div><div class="value" id="m-mem">--</div><div class="bar"><i id="b-mem"></i></div></div>
+    <div class="metric"><div class="label">磁盘</div><div class="value" id="m-disk">--</div><div class="bar"><i id="b-disk"></i></div></div>
+    <div class="metric"><div class="label">Token 消耗</div><div class="value" id="m-token">--</div><div class="bar"><i id="b-token" style="display:none"></i></div></div>
+    <div class="services" id="services"></div>
+  </div>
+
+  <div class="mcp-section">
+    <div class="mcp-head">MCP 服务</div>
+    <div class="mcp-grid" id="mcp-grid"></div>
+  </div>
+
+  <div class="chat">
+    <div class="messages" id="messages"></div>
+    <div class="input-bar">
+      <input id="input" placeholder="跟我说点什么吧～（回车发送）" autocomplete="off">
+      <button id="send">发送</button>
+    </div>
   </div>
 </div>
 <script>
@@ -223,6 +352,72 @@ body {
     sendBtn.disabled = !enabled;
   }
 
+  /* ===== 监控面板 ===== */
+  function fmtBytes(n) {
+    if (n >= 1 << 30) return (n / (1 << 30)).toFixed(1) + 'G';
+    if (n >= 1 << 20) return (n / (1 << 20)).toFixed(1) + 'M';
+    if (n >= 1 << 10) return (n / (1 << 10)).toFixed(0) + 'K';
+    return n + 'B';
+  }
+  function fmtNum(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+    return String(n);
+  }
+  function fmtUptime(s) {
+    var d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+    if (d > 0) return d + '天' + h + '时';
+    if (h > 0) return h + '时' + m + '分';
+    return m + '分';
+  }
+  function setBar(el, pct) {
+    el.style.width = pct + '%';
+    el.className = pct > 90 ? 'danger' : (pct > 70 ? 'warn' : '');
+  }
+  function renderServices(svcs) {
+    var box = document.getElementById('services');
+    box.innerHTML = '';
+    var defs = [['redis', 'Redis'], ['qdrant', 'Qdrant'], ['bge', 'BGE'], ['llm', 'LLM']];
+    defs.forEach(function (p) {
+      var ok = svcs[p[0]];
+      var s = document.createElement('span');
+      s.className = 'svc ' + (ok ? 'ok' : 'bad');
+      s.innerHTML = '<span class="dot"></span>' + p[1];
+      box.appendChild(s);
+    });
+  }
+  function renderMcp(list) {
+    var grid = document.getElementById('mcp-grid');
+    grid.innerHTML = '';
+    if (!list || list.length === 0) {
+      grid.innerHTML = '<div class="mcp-empty">暂无 MCP 服务</div>';
+      return;
+    }
+    list.forEach(function (m) {
+      var c = document.createElement('div');
+      c.className = 'mcp-card';
+      var ok = m.status === 'running' || m.status === 'ok';
+      c.innerHTML = '<div class="mcp-name"><span class="dot" style="animation:none;background:' +
+        (ok ? 'var(--mint-deep)' : 'var(--red)') + '"></span>' +
+        m.name + '</div><div class="mcp-info">' + (m.info || '') + '</div>';
+      grid.appendChild(c);
+    });
+  }
+  function refreshStatus() {
+    fetch('/api/status').then(function (r) { return r.json(); }).then(function (d) {
+      document.getElementById('uptime').textContent = fmtUptime(d.uptime || 0);
+      document.getElementById('m-cpu').textContent = (d.system.cpu || 0) + '%';
+      setBar(document.getElementById('b-cpu'), d.system.cpu || 0);
+      document.getElementById('m-mem').textContent = (d.system.memory.percent || 0) + '%';
+      setBar(document.getElementById('b-mem'), d.system.memory.percent || 0);
+      document.getElementById('m-disk').textContent = (d.system.disk.percent || 0) + '%';
+      setBar(document.getElementById('b-disk'), d.system.disk.percent || 0);
+      document.getElementById('m-token').textContent = fmtNum(d.tokens.total_tokens || 0) + ' (' + (d.tokens.calls || 0) + '次)';
+      renderServices(d.services || {});
+      renderMcp(d.mcp || []);
+    }).catch(function () {});
+  }
+
   sendBtn.addEventListener('click', send);
   input.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
@@ -230,6 +425,10 @@ body {
 
   connect();
   input.focus();
+  refreshStatus();
+  setInterval(refreshStatus, 5000);
+
+  addMsg('assistant', '你好呀，我是 Hhclaw ～有什么可以帮你的？');
 })();
 </script>
 </body>

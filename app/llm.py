@@ -10,6 +10,14 @@ import httpx
 
 from . import config
 
+# token 用量统计（供 /api/status 监控面板展示）
+TOKEN_USAGE = {
+    "prompt_tokens": 0,
+    "completion_tokens": 0,
+    "total_tokens": 0,
+    "calls": 0,
+}
+
 
 async def stream_chat(messages: list[dict], tools: list[dict] | None = None, model: str | None = None):
     url = f"{config.AGICTO_BASE_URL}/chat/completions"
@@ -21,6 +29,7 @@ async def stream_chat(messages: list[dict], tools: list[dict] | None = None, mod
         "model": model or config.MODEL,
         "messages": messages,
         "stream": True,
+        "stream_options": {"include_usage": True},
     }
     if tools:
         payload["tools"] = tools
@@ -42,6 +51,13 @@ async def stream_chat(messages: list[dict], tools: list[dict] | None = None, mod
                     obj = json.loads(data)
                 except json.JSONDecodeError:
                     continue
+                # 捕获 usage（流式里 usage 出现在带 finish_reason 的最后一帧，只出现一次）
+                usage = obj.get("usage")
+                if usage:
+                    TOKEN_USAGE["prompt_tokens"] += usage.get("prompt_tokens", 0)
+                    TOKEN_USAGE["completion_tokens"] += usage.get("completion_tokens", 0)
+                    TOKEN_USAGE["total_tokens"] += usage.get("total_tokens", 0)
+                    TOKEN_USAGE["calls"] += 1
                 choice = obj["choices"][0]
                 delta = choice.get("delta") or {}
                 content = delta.get("content")
