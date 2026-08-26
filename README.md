@@ -6,7 +6,7 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-WebSocket-009688?logo=fastapi&logoColor=white)
 ![Qdrant](https://img.shields.io/badge/%E8%AE%B0%E5%BF%86-Qdrant%2BBGE-DC244C)
 
-一个常驻本地的 Python 进程：**聊天界面 / QQ 当遥控器，LLM 当大脑，工具当手脚，向量记忆当长期记忆，SKILL.md 当技能库，定时器当闹钟。**
+一个常驻本地的 Python 进程：**聊天界面 / QQ / 微信 / Telegram 当遥控器，LLM 当大脑，工具当手脚，向量记忆当长期记忆，SKILL.md 当技能库，定时器当闹钟。**
 
 相比原版 OpenClaw 的升级点：
 
@@ -15,6 +15,7 @@
 | 记忆 = 本地 Markdown 文件，纯文件查找 | 向量 RAG 记忆（Qdrant + BGE，语义检索「我上周说过啥」） |
 | Node.js | 全 Python（FastAPI，可维护、可写进简历） |
 | 单 Agent 为主 | 多 Agent 协作（主 Agent 拆解 + 子 Agent 并发） |
+| WhatsApp / Telegram（国外平台） | QQ / 微信 / Telegram（国内平台全覆盖） |
 | 英文生态 | 中文友好（BGE 本来就是中文强） |
 
 ## 界面预览（真实运行截图）
@@ -43,6 +44,20 @@
 
 ![多 Agent](docs/screenshots/04-multiagent.png)
 
+### 多平台实测（以 QQ 为例）
+
+同一个大脑，QQ / 微信 / Telegram 都能当遥控器。在 QQ 上问「你有什么功能」：
+
+![QQ 功能](docs/screenshots/05-qq-functions.jpg)
+
+问「帮我看看 D 盘还剩多少空间」，它直接调 shell 工具执行 `df`，把结果转成表格：
+
+![QQ 工具调用](docs/screenshots/07-qq-tool.jpg)
+
+更关键的——WebChat 里说过「我叫黄河、喜欢美式」，换到 QQ 上再聊，它也能从同一套向量记忆里召回：
+
+![QQ 跨平台记忆](docs/screenshots/06-qq-memory.jpg)
+
 ## 架构
 
 ```mermaid
@@ -50,7 +65,8 @@ flowchart TB
     subgraph Access["接入层"]
         Web["WebChat 单文件前端<br/>亮色 · 零 CDN"]
         QQ["QQ 官方机器人<br/>WebSocket 网关"]
-        WX["微信 / Telegram<br/>（规划中）"]
+        WX["微信<br/>官方接口"]
+        TG["Telegram<br/>Bot API"]
     end
 
     subgraph Core["Agent 核心"]
@@ -70,7 +86,8 @@ flowchart TB
 
     Web --> GW
     QQ --> GW
-    WX -.-> GW
+    WX --> GW
+    TG --> GW
     GW --> Agent
     Agent --> Tools
     Agent --> LLM
@@ -93,16 +110,19 @@ flowchart TB
 | 技能库 | SKILL.md frontmatter + 关键词路由（中文顺序匹配） |
 | 心跳调度 | APScheduler 定时自主唤醒 |
 | 多 Agent | 主 Agent 拆解 + 子 Agent 并发（dispatch 接口，可换 LangGraph） |
-| QQ 官方机器人 | 腾讯 QQ 开放平台官方 WebSocket 网关（合规、无封号风险），单聊 + 群聊 @ |
+| 多平台接入 | QQ / 微信 / Telegram 三端统一接入（官方接口，无 hook 逆向），单聊 + 群聊 @ |
 
 ## 快速开始
 
 ### 1. 配置环境变量
 
 ```bash
-export AGICTO_API_KEY=<你的 LLM key>           # LLM 接入（OpenAI 兼容接口）
-export QQ_APP_ID=<你的 QQ 机器人 AppID>         # QQ 官方机器人（可选）
-export QQ_APP_SECRET=<你的 QQ 机器人 AppSecret>  # QQ 官方机器人（可选）
+export AGICTO_API_KEY=<你的 LLM key>            # LLM 接入（OpenAI 兼容接口）
+export QQ_APP_ID=<你的 QQ 机器人 AppID>          # QQ（可选）
+export QQ_APP_SECRET=<你的 QQ 机器人 AppSecret>   # QQ（可选）
+export WX_APP_ID=<你的微信 AppID>                # 微信（可选）
+export WX_APP_SECRET=<你的微信 AppSecret>         # 微信（可选）
+export TG_BOT_TOKEN=<你的 Telegram Bot Token>     # Telegram（可选）
 ```
 
 ### 2. 安装依赖并启动
@@ -125,11 +145,17 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 > 端口均可用环境变量覆盖：`HHCLAW_REDIS_URL` / `HHCLAW_QDRANT_URL` / `HHCLAW_BGE_URL`。
 > 心跳默认关闭，需要时 `HHCLAW_HEARTBEAT_ENABLED=true` + `HHCLAW_HEARTBEAT_INTERVAL` 开启。
 
-## QQ 官方机器人接入
+## 多平台接入（QQ / 微信 / Telegram）
 
-通过腾讯 QQ 开放平台（q.qq.com）的官方机器人 API 接入，走 WebSocket 网关，合规稳定，无需 hook 逆向。
+三个平台都通过官方接口接入，合规稳定，无需 hook 逆向，共用一个大脑和一套记忆。
 
-### 开通流程
+| 平台 | 接入方式 | 说明 |
+|---|---|---|
+| QQ | 腾讯 QQ 开放平台（q.qq.com）WebSocket 网关 | 单聊 C2C + 群聊 @ |
+| 微信 | 微信官方接口（公众号 / 企业微信） | 消息回调 |
+| Telegram | Telegram Bot API（官方 HTTP 接口） | 长轮询 / Webhook |
+
+### QQ 开通流程
 
 1. 登录 [q.qq.com](https://q.qq.com) → 个人主体注册（邮箱 + 实名）
 2. 创建机器人，拿到 **AppID** 和 **AppSecret**
@@ -140,14 +166,16 @@ uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 | 变量 | 默认值 | 说明 |
 |---|---|---|
-| `QQ_APP_ID` | 空 | 机器人 AppID |
-| `QQ_APP_SECRET` | 空 | 机器人 AppSecret |
-| `QQ_API_BASE` | `https://sandbox.api.sgroup.qq.com` | 沙箱环境；正式环境用 `https://api.sgroup.qq.com` |
-| `QQ_INTENTS` | `1<<25`（33554432） | 订阅事件：单聊 C2C_MESSAGE_CREATE + 群聊 GROUP_AT_MESSAGE_CREATE |
+| `QQ_APP_ID` | 空 | QQ 机器人 AppID |
+| `QQ_APP_SECRET` | 空 | QQ 机器人 AppSecret |
+| `QQ_API_BASE` | `https://sandbox.api.sgroup.qq.com` | QQ 沙箱环境；正式环境用 `https://api.sgroup.qq.com` |
+| `QQ_INTENTS` | `1<<25`（33554432） | QQ 订阅事件：单聊 + 群聊 @ |
+| `WX_APP_ID` / `WX_APP_SECRET` | 空 | 微信官方接口凭据 |
+| `TG_BOT_TOKEN` | 空 | Telegram Bot Token（@BotFather 获取） |
 
 ### 工作原理
 
-Hhclaw 作为客户端主动连 QQ 官方 WebSocket 网关：拿 access_token → 连网关 → Identify 鉴权 → 收消息事件 → Agent 处理 → 通过 HTTP API 发消息回 QQ。群聊里需 @ 机器人才应答。
+各平台适配器把消息统一收成同一种格式 → 记忆检索 + 技能路由 + Agent 循环 → 再投递回对应平台。以 QQ 为例：拿 access_token → 连 WebSocket 网关 → Identify 鉴权 → 收消息事件 → Agent 处理 → 通过 HTTP API 发消息回 QQ，群聊需 @ 才应答。
 
 ## 技术栈
 
@@ -161,6 +189,8 @@ hhclaw/
 │   ├── main.py        # 接入层（WebChat WebSocket）+ 消息处理编排
 │   ├── status.py      # 系统状态监控（/api/status + MCP 注册表）
 │   ├── qqbot.py       # QQ 官方机器人接入（WebSocket 网关 + 心跳 + 收发）
+│   ├── wechatbot.py   # 微信官方接口接入
+│   ├── tgbot.py       # Telegram Bot API 接入
 │   ├── agent.py       # ReAct 循环（含终止条件）
 │   ├── tools.py       # 工具层 + 四层安全壳
 │   ├── memory.py      # 三层记忆（Redis + Qdrant/BGE）
