@@ -46,3 +46,12 @@ HEARTBEAT_INTERVAL = int(os.getenv("CLAWPY_HEARTBEAT_INTERVAL", "3600"))  # 秒�
 HEARTBEAT_PROMPT = os.getenv(
     "CLAWPY_HEARTBEAT_PROMPT", "检查一下当前系统状态（磁盘、内存），简要汇报"
 )
+
+# QQ 官方机器人（阶段 4B，WebSocket 网关接入，见 docs/4B-multi-platform.md）
+QQ_APP_ID = os.getenv("QQ_APP_ID", "")
+QQ_APP_SECRET = os.getenv("QQ_APP_SECRET", "")
+# 沙箱环境 sandbox.api.sgroup.qq.com（不受 IP 白名单限制）；正式 api.sgroup.qq.com
+QQ_API_BASE = os.getenv("QQ_API_BASE", "https://sandbox.api.sgroup.qq.com")
+QQ_TOKEN_URL = "https://bots.qq.com/app/getAppAccessToken"
+# GROUP_AND_C2C_EVENT = 1<<25：单聊 C2C_MESSAGE_CREATE + 群聊 GROUP_AT_MESSAGE_CREATE
+QQ_INTENTS = int(os.getenv("QQ_INTENTS", str(1 << 25)))

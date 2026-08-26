@@ -18,6 +18,7 @@ from . import memory
 from . import skills
 from . import scheduler
 from . import multiagent
+from . import qqbot
 from .agent import run_agent
 
 logging.basicConfig(
@@ -35,7 +36,9 @@ async def lifespan(app: FastAPI):
         logger.warning("AGICTO_API_KEY 未设置，LLM 调用将失败")
     logger.info("ClawPy 启动：model=%s base_url=%s", config.MODEL, config.AGICTO_BASE_URL)
     scheduler.start_heartbeat(registry)
+    qqbot_task = asyncio.create_task(qqbot.run_qqbot())
     yield
+    qqbot_task.cancel()
     scheduler.stop_heartbeat()
     logger.info("ClawPy 关闭")
 
