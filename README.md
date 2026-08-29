@@ -8,7 +8,58 @@
 
 一个常驻本地的 Python 进程：**聊天界面 / QQ / 微信 / Telegram 当遥控器，LLM 当大脑，工具当手脚，向量记忆当长期记忆，SKILL.md 当技能库，定时器当闹钟。**
 
-相比原版 OpenClaw 的升级点：
+## 设计亮点
+
+不是 Demo，是一个认真做过工程决策的助手。每个设计点都是「遇到什么问题 → 怎么解决」：
+
+### 1. 手写 ReAct 循环，不依赖 Agent 框架
+
+整套 Agent 循环是手写的（`app/agent.py`，130 行内），不引 LangGraph、不引 LangChain，只有 httpx + function calling。控制力全在自己手里：
+
+- **三重终止条件**：最多 5 轮工具调用 / 总时长 60s / 工具连续失败 2 次即放弃，不会死循环烧 token
+- **工具结果预览截断**：超长结果只回填前 200 字符给 LLM，避免上下文被 `df -h` 这类输出灌爆
+- **流式事件管道**：`thinking / tool_start / status / token / done / error` 六种事件状态机，前端打字机 + 「正在执行 xx」过程可视化来自这里
+
+### 2. 四层安全壳（LLM 拿工具的核心防线）
+
+LLM 能执行 shell 和读写文件，所以安全设计是一等公民，四层全部落地：
+
+| 层 | 机制 | 防什么 |
+|---|---|---|
+| 结构化调用 | function calling 输出 `{command, args[]}`，subprocess list 形式 + `shell=False` | 物理免疫命令注入（无 shell 可解析拼接） |
+| 命令白名单 | **默认拒绝**的 allowlist，只放 `df/ps/free/ping/uname` 等 11 个只读系统命令 | 任意命令执行 |
+| 路径校验 | `resolve()` 成真实路径后锁在工作区根内 | `../` 与符号链接逃逸，越权读文件 |
+| 执行隔离 | `run_in_executor` 丢线程池 + 超时 kill | 事件循环阻塞、命令挂死 |
+
+硬边界：**文件工具管工作区，shell 管系统** —— 文件读写只走带路径校验的 `read_file / write_file / list_dir`，shell 白名单里绝不放 `cat/grep`，因为那会变成绕过路径校验读任意文件的后门。
+
+### 3. 三层记忆漏斗（短期 → 摘要 → 长期语义）
+
+不是「把所有对话塞给 LLM」，而是按可复用性分三层：
+
+| 层 | 载体 | 机制 |
+|---|---|---|
+| 短期 | Redis List | 会话 20 轮 LTRIM 环形窗口 |
+| 摘要 | Redis String | 每 10 轮异步 LLM 压缩历史，拼上下文时只取最近 3 条摘要 |
+| 长期 | Qdrant + BGE | 只存「可复用事实」不存对话原文；BGE（bge-small-zh-v1.5）中文嵌入，每次新提问语义检索 Top-5 拼进 system prompt |
+
+写入时机避开对话中（不阻塞打字机）：用户显式「记住 X」即时写，会话结束异步抽取。任何一层挂了都静默熔断降级（返回空），绝不阻塞主流程 —— WebChat 记过的「我叫黄河、喜欢美式」，换到 QQ 上照样能从同一套向量记忆里召回。
+
+### 4. 多 Agent：拆解 + 并发，留了换引擎的后门
+
+复杂任务由主 Agent 拆解成子任务，`dispatch_subtasks` 接口用 `asyncio.gather` 并发执行，子 Agent 各自独立 ReAct 循环、上下文隔离，最后汇总成报告。
+
+关键在抽象：**将来要上图编排（循环 / 条件分支 / 失败重试），只替换 `dispatch_subtasks` 内部实现为 LangGraph，上层一行不改** —— 这是封口的演进路径，不是推倒重来。
+
+### 5. 定时自唤醒（闹钟式 Agent）
+
+APScheduler 定时触发，心跳任务和用户消息走同一个 Agent（同一个大脑），区别只在投递：有活跃连接就推送，没有就静默写日志。是个「到点自己干活的助手」，不只是个「你问我答的聊天框」。
+
+### 6. 实时监控面板（OpenClaw Dashboard 思路）
+
+`/api/status` 提供 CPU / 内存 / 磁盘 / Token 消耗 / 依赖服务健康灯（Redis · Qdrant · BGE · LLM）/ uptime / 会话数，前端定时轮询刷绿。还预留了 MCP 服务器注册表 —— 未来接外部 MCP 服务，面板自动多一块状态方块。
+
+## 与 OpenClaw 对比
 
 | OpenClaw 原版 | Hhclaw 升级版 |
 |---|---|
@@ -103,13 +154,13 @@ flowchart TB
 
 | 能力 | 实现 |
 |---|---|
-| 流式聊天 | FastAPI + WebSocket，打字机效果 |
-| 实时监控面板 | `/api/status` 展示 CPU / 内存 / 磁盘 / Token / 依赖服务健康 / uptime |
+| 流式聊天 | FastAPI + WebSocket，打字机效果（六事件状态机） |
+| 实时监控面板 | `/api/status` 展示 CPU / 内存 / 磁盘 / Token / 依赖服务健康 / uptime，预留 MCP 注册表 |
 | 工具调用 | 文件 / Shell / HTTP，四层安全壳（结构化调用 + 白名单 + 路径校验 + 超时） |
-| 三层记忆 | Redis 短期（20 轮）→ 摘要层（每 10 轮）→ Qdrant 长期（BGE 向量检索） |
+| 三层记忆 | Redis 短期（20 轮）→ 摘要层（每 10 轮）→ Qdrant 长期（BGE 向量检索），熔断降级 |
 | 技能库 | SKILL.md frontmatter + 关键词路由（中文顺序匹配） |
 | 心跳调度 | APScheduler 定时自主唤醒 |
-| 多 Agent | 主 Agent 拆解 + 子 Agent 并发（dispatch 接口，可换 LangGraph） |
+| 多 Agent | 主 Agent 拆解 + 子 Agent 并发（dispatch 接口抽象，可换 LangGraph） |
 | 多平台接入 | QQ / 微信 / Telegram 三端统一接入（官方接口，无 hook 逆向），单聊 + 群聊 @ |
 
 ## 快速开始
@@ -191,12 +242,12 @@ hhclaw/
 │   ├── qqbot.py       # QQ 官方机器人接入（WebSocket 网关 + 心跳 + 收发）
 │   ├── wechatbot.py   # 微信官方接口接入
 │   ├── tgbot.py       # Telegram Bot API 接入
-│   ├── agent.py       # ReAct 循环（含终止条件）
+│   ├── agent.py       # 手写 ReAct 循环（三重终止条件 + 结果预览截断）
 │   ├── tools.py       # 工具层 + 四层安全壳
-│   ├── memory.py      # 三层记忆（Redis + Qdrant/BGE）
+│   ├── memory.py      # 三层记忆（Redis + Qdrant/BGE，熔断降级）
 │   ├── skills.py      # SKILL.md 技能路由
-│   ├── multiagent.py  # 多 Agent 协作
-│   ├── scheduler.py   # 心跳调度
+│   ├── multiagent.py  # 多 Agent 协作（dispatch_subtasks 接口抽象）
+│   ├── scheduler.py   # 心跳调度（APScheduler）
 │   ├── llm.py         # LLM 流式调用 + token 统计
 │   └── config.py      # 配置（环境变量）
 ├── skills/            # 技能库（code-review 等）
@@ -207,4 +258,4 @@ hhclaw/
 
 ## 设计文档
 
-完整设计见仓库 `docs/` 目录与《专属AI助手_详细设计说明书》。
+完整设计见仓库 `docs/` 目录与《专属AI助手_详细设计说明书》（16 章，含全部封口决策）。
