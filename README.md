@@ -73,7 +73,7 @@ APScheduler 定时触发，心跳任务和用户消息走同一个 Agent（同�
 
 ### 监控面板 + 对话
 
-启动后打开  http://localhost:8000，顶部实时展示系统资源（CPU / 内存 / 磁盘 / Token 消耗）与依赖服务健康灯（Redis / Qdrant / BGE / LLM）：
+启动后打开 "http://localhost:8000" ，顶部实时展示系统资源（CPU / 内存 / 磁盘 / Token 消耗）与依赖服务健康灯（Redis / Qdrant / BGE / LLM）：
 
 ![首页](docs/screenshots/01-home.png)
 
